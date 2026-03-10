@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,20 +8,27 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
 </head>
+
 <body>
     <header class="navbar">
         <div class="logo">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect width="24" height="24" rx="6" fill="#0f172a"/>
-                <path d="M7 6h10 M7 10h10 M7 14h6" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+                <rect width="24" height="24" rx="6" fill="#0f172a" />
+                <path d="M7 6h10 M7 10h10 M7 14h6" stroke="#fff" stroke-width="2" stroke-linecap="round" />
             </svg>
             <span>DocuGen<span class="text-blue">AI</span></span>
         </div>
         <div class="nav-links">
-            <button class="btn btn-outline" id="nav-dashboard">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+            <button class="btn btn-outline hidden" id="nav-dashboard">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="14" width="7" height="7"></rect>
+                    <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
                 Dashboard
             </button>
+            <button class="btn btn-link text-gray hidden" id="nav-logout" style="margin-left: 1rem;">Logout</button>
         </div>
         <div class="powered-by">
             ✨ Powered by AI
@@ -33,7 +41,7 @@
 
     <!-- Modals -->
     <div id="modal-backdrop" class="modal-backdrop hidden"></div>
-    
+
     <!-- New Workspace Modal -->
     <div id="modal-new-workspace" class="modal hidden">
         <div class="modal-header">
@@ -48,7 +56,9 @@
                 </div>
                 <div class="form-group">
                     <label>RFP / Terms of Reference <span>Paste full content here</span></label>
-                    <textarea id="ws-text-content" placeholder="Paste the full RFP, ToR, or project requirements document here..." rows="8"></textarea>
+                    <textarea id="ws-text-content"
+                        placeholder="Paste the full RFP, ToR, or project requirements document here..."
+                        rows="8"></textarea>
                 </div>
                 <div class="form-divider">OR UPLOAD FILE (.pdf, .doc, .docx, .md)</div>
                 <div class="form-group">
@@ -56,6 +66,43 @@
                 </div>
                 <button type="submit" class="btn btn-primary w-full">Create Workspace</button>
             </form>
+        </div>
+    </div>
+
+    <!-- Edit Workspace Modal -->
+    <div id="modal-edit-workspace" class="modal hidden">
+        <div class="modal-header">
+            <h2>Edit Workspace</h2>
+            <button class="close-modal">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="form-edit-workspace">
+                <input type="hidden" id="edit-ws-id">
+                <div class="form-group">
+                    <label>Project Title</label>
+                    <input type="text" id="edit-ws-title" required>
+                </div>
+                <button type="submit" class="btn btn-primary w-full">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Confirm Delete Modal -->
+    <div id="modal-confirm-delete" class="modal hidden" style="max-width: 450px;">
+        <div class="modal-header" style="border-bottom: none; padding-bottom: 0;">
+            <h2 style="font-size: 1.125rem; font-weight: 600;">Delete Workspace</h2>
+            <button class="close-modal">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p class="mb-6 text-sm text-gray" style="margin-top: -0.5rem; line-height: 1.5;">Are you sure you want to
+                permanently delete this workspace? This action cannot be undone.</p>
+            <input type="hidden" id="delete-ws-id">
+            <div class="flex gap-3 justify-end mt-4 items-center">
+                <button type="button" class="btn btn-outline close-modal"
+                    style="padding: 0.5rem 1.5rem; border: none; font-size: 0.875rem; font-weight: 500; color: #475569; height: 38px;">Cancel</button>
+                <button type="button" id="btn-confirm-delete" class="btn"
+                    style="background-color: #ef4444; color: white; border: none; padding: 0.5rem 1.5rem; border-radius: 6px; font-size: 0.875rem; font-weight: 500; transition: background-color 0.2s; height: 38px;">Delete</button>
+            </div>
         </div>
     </div>
 
@@ -72,7 +119,9 @@
                     <span class="text-sm text-gray ml-2" id="view-doc-category">Category</span>
                 </div>
                 <button class="btn btn-outline" id="btn-download-md">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+                    </svg>
                     Download .md
                 </button>
             </div>
@@ -83,6 +132,30 @@
     </div>
 
     <!-- Templates -->
+    <template id="tpl-login">
+        <div class="login-container flex justify-center items-center" style="min-height: 80vh;">
+            <div class="card" style="width: 100%; max-width: 400px; padding: 2rem;">
+                <div class="text-center mb-6" style="text-align: center;">
+                    <h2 class="page-title" style="font-size: 1.75rem;">Welcome Back</h2>
+                    <p class="text-gray text-sm">Sign in to access DocuGenAI workspaces</p>
+                </div>
+                <form id="form-login">
+                    <div class="form-group">
+                        <label>Username</label>
+                        <input type="text" id="login-username" placeholder="Enter your username" required>
+                    </div>
+                    <div class="form-group mb-6">
+                        <label>Password</label>
+                        <input type="password" id="login-password" placeholder="Enter your password" required>
+                    </div>
+                    <div id="login-error" class="text-sm mb-4 hidden"
+                        style="color: #ef4444; background: #fee2e2; padding: 0.5rem; border-radius: 4px;"></div>
+                    <button type="submit" class="btn btn-primary w-full">Sign In</button>
+                </form>
+            </div>
+        </div>
+    </template>
+
     <template id="tpl-dashboard">
         <div class="dashboard-container">
             <div class="flex justify-between items-center mb-8">
@@ -91,7 +164,9 @@
                     <p class="page-subtitle">Manage your RFPs and generate comprehensive documentation.</p>
                 </div>
                 <button class="btn btn-primary" id="btn-new-project">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 5v14M5 12h14" />
+                    </svg>
                     New Project
                 </button>
             </div>
@@ -108,12 +183,25 @@
                     <button class="btn btn-link link-back" id="btn-back-dash">&larr; Back to Dashboard</button>
                     <h1 class="page-title" id="ws-page-title">Loading...</h1>
                     <div class="ws-meta flex items-center gap-4 text-sm text-gray mt-2">
-                        <span><svg width="14" height="14" class="inline" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> <span id="ws-date"></span></span>
-                        <span class="badge rounded border"><svg width="14" height="14" class="inline" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg> <span id="ws-progress-text"></span> Documents</span>
+                        <span><svg width="14" height="14" class="inline" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor">
+                                <circle cx="12" cy="12" r="10" />
+                                <path d="M12 6v6l4 2" />
+                            </svg> <span id="ws-date"></span></span>
+                        <span class="badge rounded border"><svg width="14" height="14" class="inline"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                <polyline points="14 2 14 8 20 8" />
+                                <line x1="16" y1="13" x2="8" y2="13" />
+                                <line x1="16" y1="17" x2="8" y2="17" />
+                                <polyline points="10 9 9 9 8 9" />
+                            </svg> <span id="ws-progress-text"></span> Documents</span>
                     </div>
                 </div>
                 <button class="btn btn-outline" id="btn-export-zip">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+                    </svg>
                     Export to ZIP
                 </button>
             </div>
@@ -122,32 +210,46 @@
                 <div class="ws-main" id="categories-container">
                     <!-- Categories and doc cards -->
                 </div>
-                
+
                 <aside class="ws-sidebar">
                     <div class="card source-card">
                         <div class="flex items-center gap-2 font-semibold mb-4 text-dark">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb"
+                                stroke-width="2">
+                                <line x1="3" y1="12" x2="21" y2="12" />
+                                <line x1="3" y1="6" x2="21" y2="6" />
+                                <line x1="3" y1="18" x2="21" y2="18" />
+                            </svg>
                             Source Material
                         </div>
-                        <div class="source-list flex flex-col gap-2 max-h-[250px] overflow-y-auto mb-4" id="ws-source-list">
+                        <div class="source-list flex flex-col gap-2 max-h-[250px] overflow-y-auto mb-4"
+                            id="ws-source-list">
                             <!-- List of source files -->
                         </div>
-                        
+
                         <div id="ws-drop-zone" class="drop-zone transition-all flex flex-col items-center">
                             <p class="text-sm text-gray mb-1">Drag & drop files here</p>
                             <p class="text-xs text-gray mb-2">or</p>
-                            <label class="btn btn-outline text-xs cursor-pointer flex justify-center items-center gap-1 w-full" style="max-width: 150px;">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            <label
+                                class="btn btn-outline text-xs cursor-pointer flex justify-center items-center gap-1 w-full"
+                                style="max-width: 150px;">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <line x1="12" y1="5" x2="12" y2="19" />
+                                    <line x1="5" y1="12" x2="19" y2="12" />
+                                </svg>
                                 Add Source File
-                                <input type="file" id="ws-add-source-btn" class="hidden" accept=".pdf,.doc,.docx,.md,.txt" multiple>
+                                <input type="file" id="ws-add-source-btn" class="hidden"
+                                    accept=".pdf,.doc,.docx,.md,.txt" multiple>
                             </label>
                             <div id="ws-upload-progress" class="text-xs text-blue mt-2 hidden">Uploading...</div>
                         </div>
-                        
+
                         <div class="mt-6 pt-4 border-t">
                             <div class="text-sm font-semibold text-dark mb-2">Overall Progress</div>
                             <div class="progress-bar-bg rounded-full h-2 mb-1">
-                                <div class="progress-bar-fill rounded-full h-2 bg-blue transition-all" id="ws-progress-fill" style="width: 0%"></div>
+                                <div class="progress-bar-fill rounded-full h-2 bg-blue transition-all"
+                                    id="ws-progress-fill" style="width: 0%"></div>
                             </div>
                             <div class="flex justify-between text-xs text-gray">
                                 <span id="ws-progress-percent">0%</span>
@@ -164,4 +266,5 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="/static/app.js"></script>
 </body>
+
 </html>

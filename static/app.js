@@ -11,22 +11,32 @@ document.addEventListener('DOMContentLoaded', () => {
     const navDashboard = document.getElementById('nav-dashboard');
     const modalBackdrop = document.getElementById('modal-backdrop');
     const modalNewWorkspace = document.getElementById('modal-new-workspace');
+    const modalEditWorkspace = document.getElementById('modal-edit-workspace');
+    const modalConfirmDelete = document.getElementById('modal-confirm-delete');
     const modalViewDoc = document.getElementById('modal-view-doc');
 
     // Templates
     const tplDashboard = document.getElementById('tpl-dashboard').innerHTML;
     const tplWorkspace = document.getElementById('tpl-workspace').innerHTML;
+    const tplLogin = document.getElementById('tpl-login').innerHTML;
+    const navLogout = document.getElementById('nav-logout');
 
     // Initialization
     init();
 
     async function init() {
         setupEventListeners();
-        await loadDashboard();
+        if (localStorage.getItem('auth_token')) {
+            navLogout.classList.remove('hidden');
+            await loadDashboard();
+        } else {
+            loadLogin();
+        }
     }
 
     function setupEventListeners() {
         navDashboard.addEventListener('click', loadDashboard);
+        navLogout.addEventListener('click', handleLogout);
 
         // Modal Close Buttons
         document.querySelectorAll('.close-modal').forEach(btn => {
@@ -36,22 +46,92 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Form Submit
         document.getElementById('form-new-workspace').addEventListener('submit', handleNewWorkspace);
+        document.getElementById('form-edit-workspace').addEventListener('submit', handleEditWorkspace);
+
+        // Confirm Delete
+        document.getElementById('btn-confirm-delete').addEventListener('click', confirmDeleteWorkspace);
 
         // Download single MD
         document.getElementById('btn-download-md').addEventListener('click', downloadCurrentDoc);
     }
 
+    // --- NETWORKING ---
+
+    async function apiFetch(url, options = {}) {
+        const token = localStorage.getItem('auth_token');
+        if (!options.headers) options.headers = {};
+        if (token) {
+            options.headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const res = await fetch(url, options);
+        if (res.status === 401 && url !== '/api/login') {
+            handleLogout();
+            throw new Error('Unauthorized');
+        }
+        return res;
+    }
+
     // --- NAVIGATION & VIEWS ---
+
+    function loadLogin() {
+        state.currentView = 'login';
+        navDashboard.classList.add('hidden');
+        navLogout.classList.add('hidden');
+        appContent.innerHTML = tplLogin;
+
+        document.getElementById('form-login').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const user = document.getElementById('login-username').value;
+            const pass = document.getElementById('login-password').value;
+            const errDiv = document.getElementById('login-error');
+            const btn = e.target.querySelector('button');
+
+            btn.disabled = true;
+            btn.innerText = "Signing In...";
+            errDiv.classList.add('hidden');
+
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: user, password: pass })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    localStorage.setItem('auth_token', data.access_token);
+                    navLogout.classList.remove('hidden');
+                    loadDashboard();
+                } else {
+                    errDiv.innerText = "Incorrect username or password";
+                    errDiv.classList.remove('hidden');
+                }
+            } catch (err) {
+                errDiv.innerText = "Network error. Please try again.";
+                errDiv.classList.remove('hidden');
+            }
+            btn.disabled = false;
+            btn.innerText = "Sign In";
+        });
+    }
+
+    function handleLogout() {
+        localStorage.removeItem('auth_token');
+        loadLogin();
+    }
 
     async function loadDashboard() {
         state.currentView = 'dashboard';
         appContent.innerHTML = tplDashboard;
 
+        navDashboard.classList.remove('hidden');
+
         document.getElementById('btn-new-project').addEventListener('click', () => {
             openModal(modalNewWorkspace);
         });
 
-        const res = await fetch('/api/workspaces');
+        const res = await apiFetch('/api/workspaces');
         if (res.ok) {
             const data = await res.json();
             renderWorkspaceGrid(data);
@@ -64,10 +144,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         document.getElementById('btn-back-dash').addEventListener('click', loadDashboard);
         document.getElementById('btn-export-zip').addEventListener('click', () => {
-            window.location.href = `/api/workspaces/${id}/export`;
+            downloadWithAuth(`/api/workspaces/${id}/export`, `workspace_${id}_export.zip`);
         });
 
-        const res = await fetch(`/api/workspaces/${id}`);
+        const res = await apiFetch(`/api/workspaces/${id}`);
         if (res.ok) {
             const data = await res.json();
             state.currentWorkspace = data;
@@ -102,11 +182,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 <p class="ws-card-desc">Project details and documentation generation workspace.</p>
                 <div class="mt-4 pt-4 border-t flex justify-between items-center">
                     <button class="btn btn-link text-blue flex items-center gap-1 text-sm btn-open-ws">View Workspace <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button>
+                    <div class="ws-card-actions">
+                        <button class="btn-icon-only btn-icon-edit" aria-label="Edit Workspace" title="Edit Workspace">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                        </button>
+                        <button class="btn-icon-only btn-icon-delete" aria-label="Delete Workspace" title="Delete Workspace">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                        </button>
+                    </div>
                 </div>
             `;
 
             el.querySelector('.ws-card-title').addEventListener('click', (e) => { e.preventDefault(); loadWorkspace(ws.id); });
             el.querySelector('.btn-open-ws').addEventListener('click', () => loadWorkspace(ws.id));
+
+            const btnEdit = el.querySelector('.btn-icon-edit');
+            if (btnEdit) btnEdit.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openEditWorkspace(ws); });
+
+            const btnDelete = el.querySelector('.btn-icon-delete');
+            if (btnDelete) btnDelete.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); handleDeleteWorkspace(ws.id); });
 
             grid.appendChild(el);
         });
@@ -132,12 +226,20 @@ document.addEventListener('DOMContentLoaded', () => {
         if (data.sources && data.sources.length > 0) {
             data.sources.forEach(src => {
                 const el = document.createElement('div');
-                el.className = 'source-file-item';
+                el.className = 'source-file-item group';
                 el.innerHTML = `
                     <svg class="source-file-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                     <span class="source-file-name" title="${src.filename}">${src.filename}</span>
+                    <button class="btn-delete-source" data-id="${src.id}" title="Remove source">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                    </button>
                 `;
                 sourceList.appendChild(el);
+            });
+
+            // Attach delete events
+            document.querySelectorAll('.btn-delete-source').forEach(btn => {
+                btn.addEventListener('click', (e) => handleDeleteSource(e.currentTarget.dataset.id));
             });
         } else {
             sourceList.innerHTML = '<em class="text-sm text-gray">No sources uploaded yet.</em>';
@@ -230,7 +332,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const fileInput = document.getElementById('ws-file');
 
         // 1. Create Workspace
-        const resWs = await fetch('/api/workspaces', {
+        const resWs = await apiFetch('/api/workspaces', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ title })
@@ -241,7 +343,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // 2. Upload text if present
             if (textContent.trim()) {
-                await fetch(`/api/workspaces/${ws.id}/sources/text`, {
+                await apiFetch(`/api/workspaces/${ws.id}/sources/text`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ title: 'Pasted Terms of Reference', content: textContent })
@@ -252,7 +354,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (fileInput.files.length > 0) {
                 const formData = new FormData();
                 formData.append('file', fileInput.files[0]);
-                await fetch(`/api/workspaces/${ws.id}/sources`, {
+                await apiFetch(`/api/workspaces/${ws.id}/sources`, {
                     method: 'POST',
                     body: formData
                 });
@@ -269,13 +371,75 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.innerText = "Create Workspace";
     }
 
+    function openEditWorkspace(workspace) {
+        document.getElementById('edit-ws-id').value = workspace.id;
+        document.getElementById('edit-ws-title').value = workspace.title;
+        openModal(modalEditWorkspace);
+    }
+
+    async function handleEditWorkspace(e) {
+        e.preventDefault();
+
+        const btn = e.target.querySelector('button[type="submit"]');
+        btn.disabled = true;
+        btn.innerText = "Saving...";
+
+        const id = document.getElementById('edit-ws-id').value;
+        const newTitle = document.getElementById('edit-ws-title').value;
+
+        const res = await apiFetch(`/api/workspaces/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: newTitle })
+        });
+
+        if (res.ok) {
+            closeAllModals();
+            loadDashboard(); // reload grid
+        } else {
+            alert("Failed to update workspace name");
+        }
+
+        btn.disabled = false;
+        btn.innerText = "Save Changes";
+    }
+
+    function handleDeleteWorkspace(id) {
+        document.getElementById('delete-ws-id').value = id;
+        openModal(modalConfirmDelete);
+    }
+
+    async function confirmDeleteWorkspace(e) {
+        const btn = e.target;
+        btn.disabled = true;
+        btn.innerText = "Deleting...";
+
+        const id = document.getElementById('delete-ws-id').value;
+
+        try {
+            const res = await apiFetch(`/api/workspaces/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                closeAllModals();
+                loadDashboard();
+            } else {
+                alert("Failed to delete workspace.");
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Network error occurred during deletion.");
+        }
+
+        btn.disabled = false;
+        btn.innerText = "Delete";
+    }
+
     async function handleGenerate(path, btnElement) {
         btnElement.disabled = true;
-        const originalText = btnElement.innerText;
+        const originalText = btnElement.innerHTML;
         btnElement.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="animate-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Generating...`;
 
         try {
-            const res = await fetch(`/api/workspaces/${state.currentWorkspace.workspace.id}/documents/generate`, {
+            const res = await apiFetch(`/api/workspaces/${state.currentWorkspace.workspace.id}/documents/generate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ template_paths: [path] })
@@ -284,17 +448,38 @@ document.addEventListener('DOMContentLoaded', () => {
             if (res.ok) {
                 // Reload workspace to catch changes
                 loadWorkspace(state.currentWorkspace.workspace.id);
+            } else {
+                alert("Error generating document");
+                btnElement.disabled = false;
+                btnElement.innerHTML = originalText;
             }
         } catch (e) {
             console.error(e);
             alert("Error generating document");
             btnElement.disabled = false;
-            btnElement.innerText = originalText;
+            btnElement.innerHTML = originalText;
+        }
+    }
+
+    async function handleDeleteSource(sourceId) {
+        if (!confirm("Are you sure you want to delete this source file? Note that generating new documents will no longer reference this file.")) return;
+
+        try {
+            const res = await apiFetch(`/api/workspaces/${state.currentWorkspace.workspace.id}/sources/${sourceId}`, {
+                method: 'DELETE'
+            });
+            if (res.ok) {
+                loadWorkspace(state.currentWorkspace.workspace.id);
+            } else {
+                alert("Failed to delete source");
+            }
+        } catch (e) {
+            console.error("Error deleting source", e);
         }
     }
 
     async function viewDocument(id) {
-        const res = await fetch(`/api/documents/${id}`);
+        const res = await apiFetch(`/api/documents/${id}`);
         if (res.ok) {
             const doc = await res.json();
             document.getElementById('view-doc-title').innerText = `${doc.title} - ${doc.category}`;
@@ -306,7 +491,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Link download button
             const dlBtn = document.getElementById('btn-download-md');
-            dlBtn.onclick = () => window.location.href = `/api/documents/${id}/download`;
+            dlBtn.onclick = () => downloadWithAuth(`/api/documents/${id}/download`, `${doc.title}.md`);
 
             openModal(modalViewDoc);
         }
@@ -321,11 +506,42 @@ document.addEventListener('DOMContentLoaded', () => {
     function closeAllModals() {
         modalBackdrop.classList.add('hidden');
         modalNewWorkspace.classList.add('hidden');
+        modalEditWorkspace.classList.add('hidden');
+        modalConfirmDelete.classList.add('hidden');
         modalViewDoc.classList.add('hidden');
     }
 
     function downloadCurrentDoc() {
         // Handled dynamically in viewDocument
+    }
+
+    async function downloadWithAuth(url, defaultFilename) {
+        try {
+            const res = await apiFetch(url);
+            if (!res.ok) throw new Error("Download failed");
+
+            const blob = await res.blob();
+            const urlObj = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = urlObj;
+
+            let filename = defaultFilename;
+            const disposition = res.headers.get('Content-Disposition');
+            if (disposition && disposition.indexOf('attachment') !== -1) {
+                const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+                const matches = filenameRegex.exec(disposition);
+                if (matches != null && matches[1]) filename = matches[1].replace(/['"]/g, '');
+            }
+
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(urlObj);
+        } catch (e) {
+            console.error("Download error", e);
+            alert("Error downloading file");
+        }
     }
 
     // --- UTILS ---
@@ -378,7 +594,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const formData = new FormData();
                 formData.append('file', files[i]);
                 try {
-                    const res = await fetch(`/api/workspaces/${workspaceId}/sources`, { method: 'POST', body: formData });
+                    const res = await apiFetch(`/api/workspaces/${workspaceId}/sources`, { method: 'POST', body: formData });
                     if (!res.ok) hasError = true;
                 } catch (err) {
                     console.error("Upload failed for", files[i].name);

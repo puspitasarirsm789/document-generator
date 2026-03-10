@@ -1,10 +1,28 @@
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Response
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Response, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse, FileResponse
 from typing import List
 import os
 import json
 import uuid
 import datetime
+import hashlib
+
+# Auth settings
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
+STATIC_TOKEN = hashlib.md5(f"{ADMIN_USERNAME}:{ADMIN_PASSWORD}SALT".encode()).hexdigest()
+
+security = HTTPBearer()
+
+def verify_admin(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    if credentials.credentials != STATIC_TOKEN:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return credentials.credentials
 
 import database as db
 import models
@@ -12,17 +30,24 @@ import services
 
 router = APIRouter(prefix="/api")
 
+# --- AUTH ---
+@router.post("/login", response_model=models.TokenResponse)
+def login(request: models.LoginRequest):
+    if request.username == ADMIN_USERNAME and request.password == ADMIN_PASSWORD:
+        return {"access_token": STATIC_TOKEN, "token_type": "bearer"}
+    raise HTTPException(status_code=401, detail="Incorrect username or password")
+
 # --- WORKSPACES ---
 
 @router.get("/workspaces", response_model=List[models.WorkspaceResponse])
-def get_workspaces():
+def get_workspaces(token: str = Depends(verify_admin)):
     conn = db.get_db()
     rows = conn.execute("SELECT id, title, created_at FROM workspaces ORDER BY id DESC").fetchall()
     conn.close()
     return [dict(row) for row in rows]
 
 @router.post("/workspaces", response_model=models.WorkspaceResponse)
-def create_workspace(workspace: models.WorkspaceCreate):
+def create_workspace(workspace: models.WorkspaceCreate, token: str = Depends(verify_admin)):
     conn = db.get_db()
     cursor = conn.cursor()
     cursor.execute("INSERT INTO workspaces (title) VALUES (?)", (workspace.title,))
@@ -32,7 +57,7 @@ def create_workspace(workspace: models.WorkspaceCreate):
     return {"id": workspace_id, "title": workspace.title, "created_at": datetime.datetime.now().isoformat()}
 
 @router.get("/workspaces/{workspace_id}")
-def get_workspace_details(workspace_id: int):
+def get_workspace_details(workspace_id: int, token: str = Depends(verify_admin)):
     conn = db.get_db()
     workspace = conn.execute("SELECT * FROM workspaces WHERE id = ?", (workspace_id,)).fetchone()
     if not workspace:
@@ -70,10 +95,45 @@ def get_workspace_details(workspace_id: int):
         "templates_progress": enriched_templates
     }
 
+@router.put("/workspaces/{workspace_id}", response_model=models.WorkspaceResponse)
+def update_workspace(workspace_id: int, update: models.WorkspaceUpdate, token: str = Depends(verify_admin)):
+    conn = db.get_db()
+    cursor = conn.cursor()
+    workspace = cursor.execute("SELECT * FROM workspaces WHERE id = ?", (workspace_id,)).fetchone()
+    if not workspace:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Workspace not found")
+        
+    if update.title is not None:
+        cursor.execute("UPDATE workspaces SET title = ? WHERE id = ?", (update.title, workspace_id))
+        conn.commit()
+        
+    updated = cursor.execute("SELECT * FROM workspaces WHERE id = ?", (workspace_id,)).fetchone()
+    conn.close()
+    return dict(updated)
+
+@router.delete("/workspaces/{workspace_id}")
+def delete_workspace(workspace_id: int, token: str = Depends(verify_admin)):
+    conn = db.get_db()
+    cursor = conn.cursor()
+    workspace = cursor.execute("SELECT id FROM workspaces WHERE id = ?", (workspace_id,)).fetchone()
+    if not workspace:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Workspace not found")
+        
+    # Manual cascade deletes since SQLite PRAGMA foreign_keys might be disabled
+    cursor.execute("DELETE FROM workspace_sources WHERE workspace_id = ?", (workspace_id,))
+    cursor.execute("DELETE FROM documents WHERE workspace_id = ?", (workspace_id,))
+    cursor.execute("DELETE FROM workspaces WHERE id = ?", (workspace_id,))
+    
+    conn.commit()
+    conn.close()
+    return {"message": "Workspace deleted successfully"}
+
 # --- SOURCES ---
 
 @router.post("/workspaces/{workspace_id}/sources")
-async def upload_source(workspace_id: int, file: UploadFile = File(...)):
+async def upload_source(workspace_id: int, file: UploadFile = File(...), token: str = Depends(verify_admin)):
     conn = db.get_db()
     workspace = conn.execute("SELECT id FROM workspaces WHERE id = ?", (workspace_id,)).fetchone()
     if not workspace:
@@ -104,7 +164,7 @@ async def upload_source(workspace_id: int, file: UploadFile = File(...)):
     return {"message": "Source uploaded successfully", "filename": file.filename}
 
 @router.post("/workspaces/{workspace_id}/sources/text")
-def upload_source_text(workspace_id: int, source: models.SourceCreate):
+def upload_source_text(workspace_id: int, source: models.SourceCreate, token: str = Depends(verify_admin)):
     conn = db.get_db()
     cursor = conn.cursor()
     cursor.execute(
@@ -115,8 +175,24 @@ def upload_source_text(workspace_id: int, source: models.SourceCreate):
     conn.close()
     return {"message": "Text source added successfully"}
 
+@router.delete("/workspaces/{workspace_id}/sources/{source_id}")
+def delete_source(workspace_id: int, source_id: int, token: str = Depends(verify_admin)):
+    conn = db.get_db()
+    cursor = conn.cursor()
+    
+    # Verify it exists in this workspace
+    existing = cursor.execute("SELECT id FROM workspace_sources WHERE workspace_id = ? AND id = ?", (workspace_id, source_id)).fetchone()
+    if not existing:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Source not found")
+        
+    cursor.execute("DELETE FROM workspace_sources WHERE id = ?", (source_id,))
+    conn.commit()
+    conn.close()
+    return {"message": "Source deleted successfully"}
+
 @router.get("/workspaces/{workspace_id}/sources/content")
-def get_sources_content(workspace_id: int):
+def get_sources_content(workspace_id: int, token: str = Depends(verify_admin)):
     conn = db.get_db()
     sources = conn.execute("SELECT filename, content FROM workspace_sources WHERE workspace_id = ?", (workspace_id,)).fetchall()
     conn.close()
@@ -127,7 +203,7 @@ def get_sources_content(workspace_id: int):
 # --- GENERATION ---
 
 @router.post("/workspaces/{workspace_id}/documents/generate")
-def generate_documents(workspace_id: int, request: models.DocumentGenerateRequest):
+def generate_documents(workspace_id: int, request: models.DocumentGenerateRequest, token: str = Depends(verify_admin)):
     conn = db.get_db()
     cursor = conn.cursor()
     
@@ -172,7 +248,7 @@ def generate_documents(workspace_id: int, request: models.DocumentGenerateReques
     return {"message": "Generation complete", "results": results}
 
 @router.get("/documents/{document_id}")
-def get_document(document_id: int):
+def get_document(document_id: int, token: str = Depends(verify_admin)):
     conn = db.get_db()
     doc = conn.execute("SELECT * FROM documents WHERE id = ?", (document_id,)).fetchone()
     conn.close()
@@ -183,7 +259,7 @@ def get_document(document_id: int):
 # --- EXPORT ---
 
 @router.get("/documents/{document_id}/download")
-def download_single_document(document_id: int):
+def download_single_document(document_id: int, token: str = Depends(verify_admin)):
     conn = db.get_db()
     doc = conn.execute("SELECT title, content FROM documents WHERE id = ?", (document_id,)).fetchone()
     conn.close()
@@ -198,7 +274,7 @@ def download_single_document(document_id: int):
     )
     
 @router.get("/workspaces/{workspace_id}/export")
-def export_workspace_zip(workspace_id: int):
+def export_workspace_zip(workspace_id: int, token: str = Depends(verify_admin)):
     conn = db.get_db()
     docs = conn.execute("SELECT category, title, content FROM documents WHERE workspace_id = ? AND status = 'Ready'", (workspace_id,)).fetchall()
     conn.close()

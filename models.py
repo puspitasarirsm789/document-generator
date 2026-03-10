@@ -1,8 +1,19 @@
 from pydantic import BaseModel
 from typing import List, Optional
 
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str
+
 class WorkspaceCreate(BaseModel):
     title: str
+
+class WorkspaceUpdate(BaseModel):
+    title: Optional[str] = None
 
 class WorkspaceResponse(BaseModel):
     id: int
