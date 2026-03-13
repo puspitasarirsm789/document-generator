@@ -1,6 +1,6 @@
-# DocuGenAI - Project Intelligence
+# AgentSA - Project Intelligence
 
-DocuGenAI is a powerful, locally-hosted web application that automates the generation of comprehensive project documents (like Technical Proposals, Business Requirement Documents (BRD), User Stories, etc.) from raw source materials (such as Terms of Reference / RFPs).
+AgentSA is a powerful, locally-hosted web application that automates the generation of comprehensive project documents (like Technical Proposals, Business Requirement Documents (BRD), User Stories, etc.) from raw source materials (such as Terms of Reference / RFPs).
 
 It leverages the **FastAPI** backend framework and seamlessly integrates with **Google Gemini 2.5 Flash** to intelligently process source contexts (PDFs, DOCX, TXT) and fill out predefined Markdown templates. 
 

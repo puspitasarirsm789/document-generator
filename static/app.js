@@ -259,59 +259,108 @@ document.addEventListener('DOMContentLoaded', () => {
         const catContainer = document.getElementById('categories-container');
         catContainer.innerHTML = '';
 
-        Object.keys(catMap).sort().forEach(catTitle => {
-            const number = catTitle.split('-')[0];
-            const cleanTitle = catTitle.split('-').slice(1).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+        if (Object.keys(catMap).length === 0) {
+            catContainer.innerHTML = '<div class="text-gray text-center p-8">No documents available for this project.</div>';
+        } else {
+            // Build Tabs Container
+            const tabsWrapper = document.createElement('div');
+            tabsWrapper.className = 'tabs-container';
 
-            let html = `
-                <div class="category-section">
-                    <div class="category-header">
-                        <div class="cat-number">${number}</div>
-                        <h2 class="category-title">${number}. ${cleanTitle}</h2>
-                    </div>
-                    <div class="docs-grid">
-            `;
+            const tabsHeader = document.createElement('div');
+            tabsHeader.className = 'tabs-header';
 
-            catMap[catTitle].forEach(tp => {
-                const isReady = tp.status === 'Ready';
-                const fileTokens = tp.template.title.split('-');
-                const fileId = fileTokens[0] + (fileTokens.length > 1 ? `-${fileTokens[1].toUpperCase()}` : '');
+            const tabsContent = document.createElement('div');
+            tabsContent.className = 'tabs-content';
 
-                html += `
-                    <div class="doc-card ${isReady ? 'ready' : ''}" data-path="${tp.template.path}" data-id="${isReady ? tp.document.id : ''}">
-                        <div>
-                            <div class="doc-card-header">
-                                <span class="file-badge">${fileId}</span>
-                                ${isReady
-                        ? '<span class="badge badge-success flex items-center gap-1"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Ready</span>'
-                        : '<span class="badge badge-pending">Pending</span>'}
+            let isFirst = true;
+
+            Object.keys(catMap).sort().forEach(catTitle => {
+                const number = catTitle.split('-')[0];
+                const cleanTitle = catTitle.split('-').slice(1).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+
+                // Create a robust, safe ID string
+                const safeName = cleanTitle.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+                const tabId = `tab-${number}-${safeName}`;
+
+                // Create Tab Button
+                const tabBtn = document.createElement('button');
+                tabBtn.className = `tab-btn ${isFirst ? 'active' : ''}`;
+                tabBtn.dataset.target = tabId;
+                tabBtn.innerText = `${number}. ${cleanTitle}`;
+                tabsHeader.appendChild(tabBtn);
+
+                // Create Tab Pane
+                let paneHtml = `
+                    <div id="${tabId}" class="tab-pane ${isFirst ? 'active' : ''}">
+                        <div class="category-section">
+                            <div class="category-header">
+                                <div class="cat-number">${number}</div>
+                                <h2 class="category-title">${cleanTitle}</h2>
                             </div>
-                            <h3 class="doc-card-title">${tp.template.title.replace(/-/g, ' ').replace(/^\d+ /, '')}</h3>
-                        </div>
-                        <div class="doc-actions w-full mt-2">
-                        ${!isReady ?
-                        `<button class="btn btn-primary w-full btn-generate" data-path="${tp.template.path}">✨ Generate Document</button>`
-                        :
-                        `<button class="btn btn-outline w-full btn-view" style="flex: 1;" data-id="${tp.document.id}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> View</button>
-                             <button class="btn btn-outline w-full btn-regen" style="flex: 1;" data-path="${tp.template.path}">Regenerate</button>`
-                    }
-                        </div>
-                    </div>
+                            <div class="docs-grid">
                 `;
+
+                catMap[catTitle].forEach(tp => {
+                    const isReady = tp.status === 'Ready';
+                    const fileTokens = tp.template.title.split('-');
+                    const fileId = fileTokens[0] + (fileTokens.length > 1 ? `-${fileTokens[1].toUpperCase()}` : '');
+
+                    paneHtml += `
+                        <div class="doc-card ${isReady ? 'ready' : ''}" data-path="${tp.template.path}" data-id="${isReady ? tp.document.id : ''}">
+                            <div>
+                                <div class="doc-card-header">
+                                    <span class="file-badge">${fileId}</span>
+                                    ${isReady
+                            ? '<span class="badge badge-success flex items-center gap-1"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Ready</span>'
+                            : '<span class="badge badge-pending">Pending</span>'}
+                                </div>
+                                <h3 class="doc-card-title">${tp.template.title.replace(/-/g, ' ').replace(/^\d+ /, '').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ')}</h3>
+                            </div>
+                            <div class="doc-actions w-full mt-2" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            ${!isReady ?
+                            `<button class="btn btn-primary w-full btn-generate" style="flex: 1; padding: 0.5rem;" data-path="${tp.template.path}" data-lang="id">✨ Gen (ID)</button>
+                                 <button class="btn btn-outline w-full btn-generate" style="flex: 1; padding: 0.5rem;" data-path="${tp.template.path}" data-lang="en">✨ Gen (EN)</button>`
+                            :
+                            `<button class="btn btn-outline w-full btn-view" style="flex: 1; padding: 0.5rem;" data-id="${tp.document.id}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> View</button>
+                                 <button class="btn btn-outline w-full btn-regen" style="flex: 1; padding: 0.5rem;" data-path="${tp.template.path}" data-lang="id">Regen (ID)</button>
+                                 <button class="btn btn-outline w-full btn-regen" style="flex: 1; padding: 0.5rem;" data-path="${tp.template.path}" data-lang="en">Regen (EN)</button>`
+                        }
+                            </div>
+                        </div>
+                    `;
+                });
+
+                paneHtml += `</div></div></div>`;
+                tabsContent.insertAdjacentHTML('beforeend', paneHtml);
+                isFirst = false;
             });
 
-            html += `</div></div>`;
-            const section = document.createElement('div');
-            section.innerHTML = html;
-            catContainer.appendChild(section);
-        });
+            tabsWrapper.appendChild(tabsHeader);
+            tabsWrapper.appendChild(tabsContent);
+            catContainer.appendChild(tabsWrapper);
+
+            // Tab Switch Logic
+            tabsHeader.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const targetId = e.currentTarget.dataset.target;
+
+                    // Remove active from all buttons and panes
+                    tabsHeader.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                    tabsContent.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+
+                    // Add active to clicked button and target pane
+                    e.currentTarget.classList.add('active');
+                    document.getElementById(targetId).classList.add('active');
+                });
+            });
+        }
 
         // Attach events
         document.querySelectorAll('.btn-generate').forEach(b => {
-            b.addEventListener('click', (e) => handleGenerate(e.target.dataset.path, b));
+            b.addEventListener('click', (e) => handleGenerate(e.currentTarget.dataset.path, e.currentTarget.dataset.lang, e.currentTarget));
         });
         document.querySelectorAll('.btn-regen').forEach(b => {
-            b.addEventListener('click', (e) => handleGenerate(e.target.dataset.path, b));
+            b.addEventListener('click', (e) => handleGenerate(e.currentTarget.dataset.path, e.currentTarget.dataset.lang, e.currentTarget));
         });
         document.querySelectorAll('.btn-view').forEach(b => {
             b.addEventListener('click', (e) => viewDocument(e.currentTarget.dataset.id));
@@ -433,16 +482,16 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.innerText = "Delete";
     }
 
-    async function handleGenerate(path, btnElement) {
+    async function handleGenerate(path, lang, btnElement) {
         btnElement.disabled = true;
         const originalText = btnElement.innerHTML;
-        btnElement.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="animate-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Generating...`;
+        btnElement.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="animate-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> ...`;
 
         try {
             const res = await apiFetch(`/api/workspaces/${state.currentWorkspace.workspace.id}/documents/generate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ template_paths: [path] })
+                body: JSON.stringify({ template_paths: [path], language: lang })
             });
 
             if (res.ok) {
@@ -486,7 +535,10 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('view-doc-category').innerText = `Category: ${doc.category.replace(/^\d+-/, '')}`;
 
             // Process markdown using imported marked library
-            const htmlContent = marked.parse(doc.content || "*No content generated.*");
+            const rawContent = doc.content || "*No content generated.*";
+            // Remove {#anchor-tags} format
+            const cleanContent = rawContent.replace(/\{#[^}]+\}/g, '');
+            const htmlContent = marked.parse(cleanContent);
             document.getElementById('view-doc-content').innerHTML = htmlContent;
 
             // Link download button

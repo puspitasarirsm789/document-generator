@@ -57,18 +57,21 @@ def get_template_content(template_path: str, template_dir="document_template") -
             return f.read()
     return ""
 
-def _generate_document_content(template_content: str, source_context: str) -> str:
+def _generate_document_content(template_content: str, source_context: str, language: str = "en") -> str:
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         context_preview = source_context[:500] + ("..." if len(source_context) > 500 else "")
         return f"> **Error**: GEMINI_API_KEY environment variable not set. Please set it or add it to your environment to enable real generation.\n> Source preview: _{context_preview}_\n\n---\n\n{template_content}"
         
     try:
+        lang_instruction = "English" if language == "en" else "Indonesian (Bahasa Indonesia)"
         client = genai.Client(api_key=api_key)
         prompt = f"""You are a professional technical writer and business analyst.
 Your task is to generate a comprehensive document by filling in the provided template based on the source context.
 Do not include any placeholders like {{{{VARIABLE}}}} in the output if they can be inferred.
 If information is missing from the source context, either make a reasonable, professional assumption based on the context, or write "Information not provided in source document".
+
+CRITICAL INSTRUCTION: You MUST generate the ENTIRE document content in {lang_instruction}. Translate any headings or content from the template into {lang_instruction} if necessary.
 
 === SOURCE CONTEXT ===
 {source_context}
@@ -76,7 +79,7 @@ If information is missing from the source context, either make a reasonable, pro
 === TEMPLATE TO FILL ===
 {template_content}
 
-Generate the final filled document in Markdown format. Output the document content directly, do not use markdown code blocks like ```markdown...``` around the entire response.
+Generate the final filled document in Markdown format in {lang_instruction}. Output the document content directly, do not use markdown code blocks like ```markdown...``` around the entire response.
 """
         response = client.models.generate_content(
             model='gemini-2.5-flash',

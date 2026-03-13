@@ -224,7 +224,7 @@ def generate_documents(workspace_id: int, request: models.DocumentGenerateReques
         template_text = services.get_template_content(template_path)
         
         # simulated generation
-        generated_content = services._generate_document_content(template_text, context)
+        generated_content = services._generate_document_content(template_text, context, request.language)
         
         # Save or update DB
         existing = cursor.execute("SELECT id FROM documents WHERE workspace_id=? AND template_path=?", (workspace_id, template_path)).fetchone()

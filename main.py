@@ -14,7 +14,7 @@ import database
 # Initialize DB on startup
 database.init_db()
 
-app = FastAPI(title="DocuGenAI - Project Intelligence")
+app = FastAPI(title="AgentSA - Project Intelligence")
 
 # Mount API
 app.include_router(api_router)
@@ -34,7 +34,7 @@ def serve_spa():
         with open(index_path, "r", encoding="utf-8") as f:
             return f.read()
     else:
-        return "<html><body><h1>DocuGenAI Frontend Not Built Yet</h1><p>Please check the static folder.</p></body></html>"
+        return "<html><body><h1>AgentSA Frontend Not Built Yet</h1><p>Please check the static folder.</p></body></html>"
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)

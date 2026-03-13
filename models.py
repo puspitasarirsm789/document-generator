@@ -31,6 +31,7 @@ class TemplateInfo(BaseModel):
 
 class DocumentGenerateRequest(BaseModel):
     template_paths: List[str]
+    language: Optional[str] = "en"
 
 class DocumentResponse(BaseModel):
     id: int
