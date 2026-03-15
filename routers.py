@@ -27,6 +27,7 @@ def verify_admin(credentials: HTTPAuthorizationCredentials = Depends(security)):
 import database as db
 import models
 import services
+import stitch_service
 
 router = APIRouter(prefix="/api")
 
@@ -246,6 +247,69 @@ def generate_documents(workspace_id: int, request: models.DocumentGenerateReques
     conn.close()
     
     return {"message": "Generation complete", "results": results}
+
+# --- STITCH ---
+
+@router.get("/workspaces/{workspace_id}/stitch/dna")
+def get_stitch_dna(workspace_id: int, token: str = Depends(verify_admin)):
+    # In a real app, we might store DNA per workspace, here we extract it on demand
+    dna = stitch_service.extract_design_dna()
+    return {"dna": dna}
+
+@router.get("/workspaces/{workspace_id}/stitch/theme")
+def get_stitch_theme(workspace_id: int, token: str = Depends(verify_admin)):
+    # Extract structural theme variables from Stitch images
+    theme = stitch_service.extract_stitch_theme()
+    return theme
+
+@router.post("/stitch/generate")
+def generate_with_stitch(request: models.StitchGenerateRequest, token: str = Depends(verify_admin)):
+    conn = db.get_db()
+    cursor = conn.cursor()
+    
+    # getting combined context
+    workspace_id = request.workspace_id
+    sources = cursor.execute("SELECT content FROM workspace_sources WHERE workspace_id = ?", (workspace_id,)).fetchall()
+    context = "\n".join([s['content'] for s in sources if s['content']])
+    
+    # Extract DNA
+    dna = stitch_service.extract_design_dna()
+    
+    all_templates = services.get_templates()
+    templates_dict = {t['path']: t for t in all_templates}
+    
+    results = []
+    
+    for template_path in request.template_paths:
+        if template_path not in templates_dict:
+            continue
+            
+        t_info = templates_dict[template_path]
+        template_text = services.get_template_content(template_path)
+        
+        # Generation with Stitch
+        generated_content = stitch_service.generate_ui_design(template_text, context, dna, request.language)
+        
+        # Save or update DB
+        existing = cursor.execute("SELECT id FROM documents WHERE workspace_id=? AND template_path=?", (workspace_id, template_path)).fetchone()
+        
+        now = datetime.datetime.now().isoformat()
+        if existing:
+            cursor.execute("""
+                UPDATE documents SET content=?, status='Ready', generated_at=? WHERE id=?
+            """, (generated_content, now, existing['id']))
+            results.append({"path": template_path, "status": "updated"})
+        else:
+            cursor.execute("""
+                INSERT INTO documents (workspace_id, template_path, title, category, content, status, generated_at)
+                VALUES (?, ?, ?, ?, ?, 'Ready', ?)
+            """, (workspace_id, template_path, t_info['title'], t_info['category'], generated_content, now))
+            results.append({"path": template_path, "status": "created"})
+            
+    conn.commit()
+    conn.close()
+    
+    return {"message": "Stitch generation complete", "results": results}
 
 @router.get("/documents/{document_id}")
 def get_document(document_id: int, token: str = Depends(verify_admin)):

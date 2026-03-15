@@ -1,33 +1,44 @@
 :root {
     --bg-color: #f8fafc;
     --card-bg: #ffffff;
-    --text-primary: #1e293b;
+    --card-bg-accent: #f0f7ff;
+    /* Pronounced Light Blue */
+    --text-primary: #0f172a;
     --text-secondary: #64748b;
-    --color-primary: #0f172a;
-    --color-primary-hover: #1e293b;
+    --color-primary: #2563eb;
+    --color-primary-hover: #1d4ed8;
+    --color-accent: #3b82f6;
     --color-blue: #2563eb;
     --color-blue-light: #eff6ff;
     --color-success: #10b981;
-    --color-success-bg: #d1fae5;
-    --border-color: #e2e8f0;
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-    --border-radius: 12px;
+    --color-success-bg: #ecfdf5;
+    --border-color: #d1d5db;
+    --card-border: #bfdbfe;
+    /* Visible Blue Border */
+    --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    --border-radius: 16px;
     --border-radius-sm: 8px;
+    --font-main: 'Inter', 'Outfit', 'Google Sans', sans-serif;
+}
+
+.bg-mesh {
+    display: none;
 }
 
 * {
-    box-sizing: border-box;
     margin: 0;
     padding: 0;
+    box-sizing: border-box;
 }
 
 body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     background-color: var(--bg-color);
     color: var(--text-primary);
+    font-family: var(--font-main);
     line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
     min-height: 100vh;
 }
 
@@ -170,7 +181,7 @@ h4 {
     align-items: center;
     position: sticky;
     top: 0;
-    z-index: 40;
+    z-index: 100;
 }
 
 .logo {
@@ -198,23 +209,23 @@ h4 {
     justify-content: center;
     gap: 0.5rem;
     padding: 0.625rem 1.25rem;
-    font-size: 0.875rem;
-    font-weight: 600;
     border-radius: var(--border-radius-sm);
+    font-weight: 500;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
-    transition: all 0.2s ease;
-    border: none;
-    font-family: inherit;
+    border: 1px solid transparent;
+    font-size: 0.875rem;
 }
 
 .btn-primary {
-    background-color: var(--color-primary);
-    color: white;
+    background: var(--color-primary);
+    color: #ffffff;
 }
 
 .btn-primary:hover {
-    background-color: var(--color-primary-hover);
+    background: var(--color-primary-hover);
     transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
 }
 
 .btn-outline {
@@ -253,16 +264,47 @@ h4 {
 
 /* Cards */
 .card {
-    background: var(--card-bg);
+    background: var(--card-bg-accent);
     border-radius: var(--border-radius);
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--card-border);
     box-shadow: var(--shadow-sm);
     padding: 1.5rem;
-    transition: box-shadow 0.2s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: var(--color-blue);
+    opacity: 0;
+    transition: opacity 0.3s ease;
 }
 
 .card:hover {
-    box-shadow: var(--shadow-md);
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-4px);
+}
+
+.card:hover::before {
+    opacity: 1;
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .grid-cards {
@@ -416,14 +458,53 @@ h4 {
     padding-top: 1.5rem;
 }
 
+/* Markdown rendering for sidebar */
+#ws-design-dna h1,
+#ws-design-dna h2,
+#ws-design-dna h3 {
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin-top: 0.75rem;
+    margin-bottom: 0.25rem;
+    color: var(--text-primary);
+}
+
+#ws-design-dna p {
+    margin-bottom: 0.5rem;
+}
+
+#ws-design-dna ul {
+    padding-left: 1.25rem;
+    margin-bottom: 0.5rem;
+    list-style-type: disc;
+}
+
+#ws-design-dna li {
+    margin-bottom: 0.25rem;
+}
+
+#ws-design-dna strong {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
 .doc-card {
-    background: white;
-    border: 1px dashed var(--border-color);
+    background: var(--card-bg-accent);
+    border: 1px solid var(--card-border);
     border-radius: var(--border-radius);
-    padding: 1.25rem;
+    padding: 1.5rem;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: default;
+    position: relative;
+}
+
+.doc-card:hover {
+    border-color: var(--color-primary);
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
 }
 
 .doc-card.ready {
@@ -496,9 +577,9 @@ h4 {
 }
 
 .tab-btn.active {
-    color: var(--color-blue);
+    color: var(--color-primary);
     font-weight: 700;
-    border-bottom-color: var(--color-blue);
+    border-bottom-color: var(--color-primary);
 }
 
 .tab-pane {
@@ -524,7 +605,49 @@ h4 {
 
 .doc-actions {
     display: flex;
+    flex-wrap: wrap;
     gap: 0.5rem;
+    margin-top: 1.25rem;
+}
+
+.doc-actions .btn {
+    flex: 1 1 120px;
+    padding: 0.75rem 0.875rem;
+    font-size: 0.875rem;
+    white-space: nowrap;
+    background-color: #ffffff !important;
+    /* Pronounced White Button */
+    border: 1.5px solid var(--color-blue);
+    color: var(--color-blue);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    font-weight: 700;
+    border-radius: 10px;
+    transition: all 0.2s ease;
+}
+
+.doc-actions .btn:hover {
+    background-color: var(--color-blue-light) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(37, 99, 235, 0.15);
+    border-color: var(--color-primary-hover);
+}
+
+.doc-actions .btn-primary,
+.doc-actions .btn-stitch {
+    background-color: #ffffff !important;
+    color: var(--color-blue) !important;
+    border: 2px solid var(--color-blue) !important;
+}
+
+.doc-actions .btn-primary:hover,
+.doc-actions .btn-stitch:hover {
+    background-color: var(--color-blue) !important;
+    color: #ffffff !important;
+}
+
+/* Force Stitch Gen button to be full width */
+.doc-actions .btn-stitch {
+    flex: 1 1 100%;
 }
 
 /* Sidebar & Progress */
@@ -611,7 +734,7 @@ h4 {
     bottom: 0;
     background: rgba(15, 23, 42, 0.4);
     backdrop-filter: blur(4px);
-    z-index: 50;
+    z-index: 1000;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -627,7 +750,7 @@ h4 {
     box-shadow: var(--shadow-lg);
     width: 90%;
     max-width: 600px;
-    z-index: 51;
+    z-index: 1001;
     overflow: hidden;
 }
 
@@ -868,6 +991,48 @@ h4 {
     width: 100%;
     border-collapse: collapse;
     margin-bottom: 1em;
+}
+
+/* UI Enhancements & Fixes */
+.btn-danger {
+    background-color: #ef4444;
+    color: white;
+    border: none;
+    padding: 0.5rem 1.5rem;
+    height: 38px;
+    border-radius: var(--border-radius-sm);
+    font-weight: 600;
+}
+
+.btn-danger:hover {
+    background-color: #dc2626;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+}
+
+.login-sparkle {
+    font-size: 3rem;
+    margin-bottom: 1.5rem;
+    filter: drop-shadow(0 0 15px rgba(99, 102, 241, 0.5));
+}
+
+.login-title {
+    font-size: 2rem;
+    background: linear-gradient(135deg, var(--text-primary), var(--text-secondary));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 700;
+}
+
+.login-card {
+    border: 1px solid var(--border-color);
+    background: var(--card-bg-accent);
+}
+
+.login-input {
+    background: rgba(255, 255, 255, 0.8) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-primary) !important;
 }
 
 .markdown-preview th,

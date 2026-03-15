@@ -237,7 +237,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 sourceList.appendChild(el);
             });
 
-            // Attach delete events
             document.querySelectorAll('.btn-delete-source').forEach(btn => {
                 btn.addEventListener('click', (e) => handleDeleteSource(e.currentTarget.dataset.id));
             });
@@ -245,10 +244,8 @@ document.addEventListener('DOMContentLoaded', () => {
             sourceList.innerHTML = '<em class="text-sm text-gray">No sources uploaded yet.</em>';
         }
 
-        // Setup drop zone
         setupDropZone(data.workspace.id);
 
-        // Categories Map
         const catMap = {};
         data.templates_progress.forEach(tp => {
             const cat = tp.template.category;
@@ -256,13 +253,16 @@ document.addEventListener('DOMContentLoaded', () => {
             catMap[cat].push(tp);
         });
 
+        // Load Design DNA & Theme
+        loadStitchDNA(data.workspace.id);
+        applyStitchTheme(data.workspace.id);
+
         const catContainer = document.getElementById('categories-container');
         catContainer.innerHTML = '';
 
         if (Object.keys(catMap).length === 0) {
             catContainer.innerHTML = '<div class="text-gray text-center p-8">No documents available for this project.</div>';
         } else {
-            // Build Tabs Container
             const tabsWrapper = document.createElement('div');
             tabsWrapper.className = 'tabs-container';
 
@@ -275,26 +275,19 @@ document.addEventListener('DOMContentLoaded', () => {
             let isFirst = true;
 
             Object.keys(catMap).sort().forEach(catTitle => {
-                const number = catTitle.split('-')[0];
-                const cleanTitle = catTitle.split('-').slice(1).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                const cleanTitle = formatDocTitle(catTitle.replace(/^\d+[.\-\s]+/, '').split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '));
+                const tabId = `tab-${catTitle.replace(/\s+/g, '-').toLowerCase()}`;
 
-                // Create a robust, safe ID string
-                const safeName = cleanTitle.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-                const tabId = `tab-${number}-${safeName}`;
-
-                // Create Tab Button
                 const tabBtn = document.createElement('button');
                 tabBtn.className = `tab-btn ${isFirst ? 'active' : ''}`;
                 tabBtn.dataset.target = tabId;
-                tabBtn.innerText = `${number}. ${cleanTitle}`;
+                tabBtn.innerText = cleanTitle;
                 tabsHeader.appendChild(tabBtn);
 
-                // Create Tab Pane
                 let paneHtml = `
                     <div id="${tabId}" class="tab-pane ${isFirst ? 'active' : ''}">
                         <div class="category-section">
                             <div class="category-header">
-                                <div class="cat-number">${number}</div>
                                 <h2 class="category-title">${cleanTitle}</h2>
                             </div>
                             <div class="docs-grid">
@@ -306,7 +299,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const fileId = fileTokens[0] + (fileTokens.length > 1 ? `-${fileTokens[1].toUpperCase()}` : '');
 
                     paneHtml += `
-                        <div class="doc-card ${isReady ? 'ready' : ''}" data-path="${tp.template.path}" data-id="${isReady ? tp.document.id : ''}">
+                        <div class="doc-card ${isReady ? 'ready' : ''}" data-path="${tp.template.path}">
                             <div>
                                 <div class="doc-card-header">
                                     <span class="file-badge">${fileId}</span>
@@ -314,16 +307,19 @@ document.addEventListener('DOMContentLoaded', () => {
                             ? '<span class="badge badge-success flex items-center gap-1"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Ready</span>'
                             : '<span class="badge badge-pending">Pending</span>'}
                                 </div>
-                                <h3 class="doc-card-title">${tp.template.title.replace(/-/g, ' ').replace(/^\d+ /, '').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ')}</h3>
+                                <h3 class="doc-card-title">${formatDocTitle(tp.template.title.replace(/-/g, ' ').replace(/^\d+ /, '').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' '))}</h3>
                             </div>
-                            <div class="doc-actions w-full mt-2" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <div class="doc-actions w-full mt-2">
+                            ${catTitle.includes('ui-ux') ?
+                            `<button class="btn btn-primary w-full btn-stitch" data-path="${tp.template.path}" data-lang="en">✨ Google Stitch Gen</button>` : ''
+                        }
                             ${!isReady ?
-                            `<button class="btn btn-primary w-full btn-generate" style="flex: 1; padding: 0.5rem;" data-path="${tp.template.path}" data-lang="id">✨ Gen (ID)</button>
-                                 <button class="btn btn-outline w-full btn-generate" style="flex: 1; padding: 0.5rem;" data-path="${tp.template.path}" data-lang="en">✨ Gen (EN)</button>`
+                            `<button class="btn btn-primary btn-generate" data-path="${tp.template.path}" data-lang="id">✨ Gen (ID)</button>
+                             <button class="btn btn-outline btn-generate" data-path="${tp.template.path}" data-lang="en">✨ Gen (EN)</button>`
                             :
-                            `<button class="btn btn-outline w-full btn-view" style="flex: 1; padding: 0.5rem;" data-id="${tp.document.id}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> View</button>
-                                 <button class="btn btn-outline w-full btn-regen" style="flex: 1; padding: 0.5rem;" data-path="${tp.template.path}" data-lang="id">Regen (ID)</button>
-                                 <button class="btn btn-outline w-full btn-regen" style="flex: 1; padding: 0.5rem;" data-path="${tp.template.path}" data-lang="en">Regen (EN)</button>`
+                            `<button class="btn btn-outline btn-view" data-id="${tp.document.id}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> View</button>
+                             <button class="btn btn-outline btn-regen" data-path="${tp.template.path}" data-lang="id">Regen (ID)</button>
+                             <button class="btn btn-outline btn-regen" data-path="${tp.template.path}" data-lang="en">Regen (EN)</button>`
                         }
                             </div>
                         </div>
@@ -339,39 +335,92 @@ document.addEventListener('DOMContentLoaded', () => {
             tabsWrapper.appendChild(tabsContent);
             catContainer.appendChild(tabsWrapper);
 
-            // Tab Switch Logic
             tabsHeader.querySelectorAll('.tab-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const targetId = e.currentTarget.dataset.target;
-
-                    // Remove active from all buttons and panes
                     tabsHeader.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
                     tabsContent.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-
-                    // Add active to clicked button and target pane
                     e.currentTarget.classList.add('active');
                     document.getElementById(targetId).classList.add('active');
                 });
             });
         }
 
-        // Attach events
-        document.querySelectorAll('.btn-generate').forEach(b => {
-            b.addEventListener('click', (e) => handleGenerate(e.currentTarget.dataset.path, e.currentTarget.dataset.lang, e.currentTarget));
-        });
-        document.querySelectorAll('.btn-regen').forEach(b => {
+        document.querySelectorAll('.btn-generate, .btn-regen').forEach(b => {
             b.addEventListener('click', (e) => handleGenerate(e.currentTarget.dataset.path, e.currentTarget.dataset.lang, e.currentTarget));
         });
         document.querySelectorAll('.btn-view').forEach(b => {
             b.addEventListener('click', (e) => viewDocument(e.currentTarget.dataset.id));
         });
+        document.querySelectorAll('.btn-stitch').forEach(b => {
+            b.addEventListener('click', (e) => handleStitchGenerate(e.currentTarget.dataset.path, e.currentTarget.dataset.lang, e.currentTarget));
+        });
+    }
+
+    async function loadStitchDNA(workspaceId) {
+        const dnaDiv = document.getElementById('ws-design-dna');
+        try {
+            const res = await apiFetch(`/api/workspaces/${workspaceId}/stitch/dna`);
+            if (res.ok) {
+                const data = await res.json();
+                const dnaText = data.dna || "No DNA data available.";
+
+                // Hide section if it contains technical error keywords
+                if (dnaText.includes("RESOURCE_EXHAUSTED") || dnaText.includes("Quota exceeded")) {
+                    dnaDiv.innerHTML = '<em class="text-xs">Design DNA is temporarily unavailable.</em>';
+                    return;
+                }
+
+                let html = '';
+                if (typeof marked !== 'undefined' && marked.parse) {
+                    html = marked.parse(dnaText);
+                } else {
+                    html = dnaText;
+                }
+
+                dnaDiv.innerHTML = `
+                    <div class="stitch-dna-content">${html}</div>
+                    <button class="btn btn-primary w-full mt-4 text-xs py-2" id="btn-sync-stitch">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline mr-1"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+                        Sync Design with Stitch
+                    </button>
+                `;
+
+                document.getElementById('btn-sync-stitch').onclick = () => applyStitchTheme(workspaceId, true);
+            } else {
+                dnaDiv.innerHTML = '<em class="text-xs">Failed to load DNA.</em>';
+            }
+        } catch (e) {
+            console.error("Error loading DNA", e);
+            dnaDiv.innerHTML = '<em class="text-xs">Error loading DNA.</em>';
+        }
+    }
+
+    async function applyStitchTheme(workspaceId, forceNotify = false) {
+        try {
+            const res = await apiFetch(`/api/workspaces/${workspaceId}/stitch/theme`);
+            if (res.ok) {
+                const theme = await res.json();
+                const root = document.documentElement;
+
+                // Consume the design variables
+                Object.keys(theme).forEach(key => {
+                    if (key.startsWith('--')) {
+                        root.style.setProperty(key, theme[key]);
+                    }
+                });
+
+                if (forceNotify) console.log("Stitch Theme Applied:", theme);
+            }
+        } catch (e) {
+            console.error("Error applying Stitch theme", e);
+        }
     }
 
     // --- ACTIONS ---
 
     async function handleNewWorkspace(e) {
         e.preventDefault();
-
         const btn = e.target.querySelector('button[type="submit"]');
         btn.disabled = true;
         btn.innerText = "Creating...";
@@ -380,7 +429,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const textContent = document.getElementById('ws-text-content').value;
         const fileInput = document.getElementById('ws-file');
 
-        // 1. Create Workspace
         const resWs = await apiFetch('/api/workspaces', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -389,8 +437,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (resWs.ok) {
             const ws = await resWs.json();
-
-            // 2. Upload text if present
             if (textContent.trim()) {
                 await apiFetch(`/api/workspaces/${ws.id}/sources/text`, {
                     method: 'POST',
@@ -398,8 +444,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: JSON.stringify({ title: 'Pasted Terms of Reference', content: textContent })
                 });
             }
-
-            // 3. Upload file if present
             if (fileInput.files.length > 0) {
                 const formData = new FormData();
                 formData.append('file', fileInput.files[0]);
@@ -408,14 +452,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: formData
                 });
             }
-
             closeAllModals();
             document.getElementById('form-new-workspace').reset();
             loadWorkspace(ws.id);
         } else {
             alert("Failed to create workspace");
         }
-
         btn.disabled = false;
         btn.innerText = "Create Workspace";
     }
@@ -428,27 +470,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function handleEditWorkspace(e) {
         e.preventDefault();
-
         const btn = e.target.querySelector('button[type="submit"]');
         btn.disabled = true;
         btn.innerText = "Saving...";
-
         const id = document.getElementById('edit-ws-id').value;
         const newTitle = document.getElementById('edit-ws-title').value;
-
         const res = await apiFetch(`/api/workspaces/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ title: newTitle })
         });
-
         if (res.ok) {
             closeAllModals();
-            loadDashboard(); // reload grid
+            loadDashboard();
         } else {
             alert("Failed to update workspace name");
         }
-
         btn.disabled = false;
         btn.innerText = "Save Changes";
     }
@@ -462,9 +499,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const btn = e.target;
         btn.disabled = true;
         btn.innerText = "Deleting...";
-
         const id = document.getElementById('delete-ws-id').value;
-
         try {
             const res = await apiFetch(`/api/workspaces/${id}`, { method: 'DELETE' });
             if (res.ok) {
@@ -477,7 +512,6 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error(err);
             alert("Network error occurred during deletion.");
         }
-
         btn.disabled = false;
         btn.innerText = "Delete";
     }
@@ -493,9 +527,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ template_paths: [path], language: lang })
             });
-
             if (res.ok) {
-                // Reload workspace to catch changes
                 loadWorkspace(state.currentWorkspace.workspace.id);
             } else {
                 alert("Error generating document");
@@ -510,9 +542,38 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function handleDeleteSource(sourceId) {
-        if (!confirm("Are you sure you want to delete this source file? Note that generating new documents will no longer reference this file.")) return;
+    async function handleStitchGenerate(path, lang, btnElement) {
+        btnElement.disabled = true;
+        const originalText = btnElement.innerHTML;
+        btnElement.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="animate-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Stitching...`;
 
+        try {
+            const res = await apiFetch(`/api/stitch/generate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    template_paths: [path],
+                    workspace_id: state.currentWorkspace.workspace.id,
+                    language: lang
+                })
+            });
+            if (res.ok) {
+                loadWorkspace(state.currentWorkspace.workspace.id);
+            } else {
+                alert("Error during Stitch generation");
+                btnElement.disabled = false;
+                btnElement.innerHTML = originalText;
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Error during Stitch generation");
+            btnElement.disabled = false;
+            btnElement.innerHTML = originalText;
+        }
+    }
+
+    async function handleDeleteSource(sourceId) {
+        if (!confirm("Are you sure you want to delete this source file?")) return;
         try {
             const res = await apiFetch(`/api/workspaces/${state.currentWorkspace.workspace.id}/sources/${sourceId}`, {
                 method: 'DELETE'
@@ -531,20 +592,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const res = await apiFetch(`/api/documents/${id}`);
         if (res.ok) {
             const doc = await res.json();
-            document.getElementById('view-doc-title').innerText = `${doc.title} - ${doc.category}`;
+            document.getElementById('view-doc-title').innerText = `${formatDocTitle(doc.title.replace(/-/g, ' ').replace(/^\d+ /, '').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' '))} - ${doc.category}`;
             document.getElementById('view-doc-category').innerText = `Category: ${doc.category.replace(/^\d+-/, '')}`;
-
-            // Process markdown using imported marked library
             const rawContent = doc.content || "*No content generated.*";
-            // Remove {#anchor-tags} format
             const cleanContent = rawContent.replace(/\{#[^}]+\}/g, '');
             const htmlContent = marked.parse(cleanContent);
             document.getElementById('view-doc-content').innerHTML = htmlContent;
-
-            // Link download button
             const dlBtn = document.getElementById('btn-download-md');
             dlBtn.onclick = () => downloadWithAuth(`/api/documents/${id}/download`, `${doc.title}.md`);
-
             openModal(modalViewDoc);
         }
     }
@@ -563,20 +618,16 @@ document.addEventListener('DOMContentLoaded', () => {
         modalViewDoc.classList.add('hidden');
     }
 
-    function downloadCurrentDoc() {
-        // Handled dynamically in viewDocument
-    }
+    function downloadCurrentDoc() { }
 
     async function downloadWithAuth(url, defaultFilename) {
         try {
             const res = await apiFetch(url);
             if (!res.ok) throw new Error("Download failed");
-
             const blob = await res.blob();
             const urlObj = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = urlObj;
-
             let filename = defaultFilename;
             const disposition = res.headers.get('Content-Disposition');
             if (disposition && disposition.indexOf('attachment') !== -1) {
@@ -584,7 +635,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const matches = filenameRegex.exec(disposition);
                 if (matches != null && matches[1]) filename = matches[1].replace(/['"]/g, '');
             }
-
             a.download = filename;
             document.body.appendChild(a);
             a.click();
@@ -597,63 +647,62 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- UTILS ---
+    function formatDocTitle(title) {
+        const mapping = {
+            'Brd': 'BRD (Business Requirement Document)',
+            'Bpmn': 'BPMN (Business Process Model and Notation)',
+            'Fsd': 'FSD (Functional Specification Document)',
+            'Data Dictionary Erd': 'ERD (Entity Relationship Diagram)',
+            'Srs': 'SRS (Software Requirements Specification)',
+            'Uat Plan': 'UAT (User Acceptance Test) Plan',
+            'Ui Ux': 'UI/UX'
+        };
+        return mapping[title] || title;
+    }
+
     function setupDropZone(workspaceId) {
         const dropZone = document.getElementById('ws-drop-zone');
         const fileInput = document.getElementById('ws-add-source-btn');
         const progressLabel = document.getElementById('ws-upload-progress');
-
         if (!dropZone || !fileInput) return;
 
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
             dropZone.addEventListener(eventName, preventDefaults, false);
         });
-
         function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
 
         ['dragenter', 'dragover'].forEach(eventName => {
             dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false);
         });
-
         ['dragleave', 'drop'].forEach(eventName => {
             dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
         });
 
-        dropZone.addEventListener('drop', handleDrop, false);
-
-        // Remove old listener if any to avoid duplicates in case of re-render
-        const newFileInput = fileInput.cloneNode(true);
-        fileInput.parentNode.replaceChild(newFileInput, fileInput);
-
-        newFileInput.addEventListener('change', handleFileSelect, false);
-
-        function handleDrop(e) {
+        dropZone.addEventListener('drop', (e) => {
             const dt = e.dataTransfer;
             const files = dt.files;
             if (files.length) handleFiles(files);
-        }
+        }, false);
 
-        function handleFileSelect(e) {
+        const newFileInput = fileInput.cloneNode(true);
+        fileInput.parentNode.replaceChild(newFileInput, fileInput);
+        newFileInput.addEventListener('change', (e) => {
             const files = e.target.files;
             if (files.length) handleFiles(files);
-        }
+        }, false);
 
         async function handleFiles(files) {
             progressLabel.classList.remove('hidden');
             progressLabel.innerText = "Uploading...";
             let hasError = false;
-
             for (let i = 0; i < files.length; i++) {
                 const formData = new FormData();
                 formData.append('file', files[i]);
                 try {
                     const res = await apiFetch(`/api/workspaces/${workspaceId}/sources`, { method: 'POST', body: formData });
                     if (!res.ok) hasError = true;
-                } catch (err) {
-                    console.error("Upload failed for", files[i].name);
-                    hasError = true;
-                }
+                } catch (err) { hasError = true; }
             }
-
             progressLabel.innerText = hasError ? "Finished with errors" : "Upload complete!";
             setTimeout(() => {
                 progressLabel.classList.add('hidden');

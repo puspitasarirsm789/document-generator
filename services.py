@@ -58,10 +58,10 @@ def get_template_content(template_path: str, template_dir="document_template") -
     return ""
 
 def _generate_document_content(template_content: str, source_context: str, language: str = "en") -> str:
-    api_key = os.environ.get("GEMINI_API_KEY")
+    api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("STITCH_API_KEY")
     if not api_key:
         context_preview = source_context[:500] + ("..." if len(source_context) > 500 else "")
-        return f"> **Error**: GEMINI_API_KEY environment variable not set. Please set it or add it to your environment to enable real generation.\n> Source preview: _{context_preview}_\n\n---\n\n{template_content}"
+        return f"> **Error**: No API Key found. Please set GEMINI_API_KEY or STITCH_API_KEY in your .env file.\n> Source preview: _{context_preview}_\n\n---\n\n{template_content}"
         
     try:
         lang_instruction = "English" if language == "en" else "Indonesian (Bahasa Indonesia)"

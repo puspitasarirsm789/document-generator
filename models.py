@@ -33,6 +33,11 @@ class DocumentGenerateRequest(BaseModel):
     template_paths: List[str]
     language: Optional[str] = "en"
 
+class StitchGenerateRequest(BaseModel):
+    template_paths: List[str]
+    workspace_id: int
+    language: Optional[str] = "en"
+
 class DocumentResponse(BaseModel):
     id: int
     workspace_id: int
